@@ -1,58 +1,35 @@
-# Python
+# Training logs
+*.log
+training_log.txt
+logs/
+*.pyc
 __pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
 
-# Virtual environments
-venv/
-ENV/
-env/
-.venv/
+# Isaac Lab cache
+.cache/
+.isaac/
+*.egg-info/
 
 # IDE
 .vscode/
 .idea/
 *.swp
 *.swo
-*~
-
-# Logs
-*.log
-logs/
-
-# Isaac Lab specific
-/tmp/
-*.core
-*.dmp
-
-# Training outputs
-outputs/
-checkpoints/
-*.pt
-*.pth
 
 # OS
 .DS_Store
 Thumbs.db
 
-# Large files (motion data should use git lfs)
-*.pkl
-*.npy
-*.npz
+# Large data files (if not needed)
+# source/legged_lab/data/MotionData/
+
+# PyTorch
+*.pth
+*.pt
+
+# Checkpoints
+checkpoints/
+logs/
+
+# USD cache
+*.usd*

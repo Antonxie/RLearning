@@ -1,116 +1,171 @@
-# G1 AMP+PPO 机器人训练项目
-
-基于 Isaac Lab + Isaac Sim 的 G1 人形机器人 AMP（对抗运动先验）+ PPO 强化学习训练框架。
-
-## 目录
-
-- [项目概述](#项目概述)
-- [核心功能](#核心功能)
-- [环境要求](#环境要求)
-- [安装步骤](#安装步骤)
-- [快速启动](#快速启动)
-- [代码结构](#代码结构)
-- [关键配置文件](#关键配置文件)
-- [训练架构](#训练架构)
-- [调试工具](#调试工具)
-- [常见问题](#常见问题)
-- [技术细节](#技术细节)
-- [维护记录](#维护记录)
-
----
+# G1 Humanoid Robot AMP+PPO Training Repository
 
 ## 项目概述
 
-本项目实现了一个人形机器人（Unitree G1）的强化学习训练系统，结合了：
+本项目是基于 Isaac Lab/Isaac Sim 平台实现的 G1 人形机器人 AMP (Adversarial Motion Priors) + PPO (Proximal Policy Optimization) 强化学习训练系统。通过结合人类运动数据、外力干扰训练和速度命令跟踪，实现具有人类行走风格、鲁棒性强的 G1 机器人运动策略。
 
-- **AMP (Adversarial Motion Priors)**: 对抗运动先验，让机器人学习人类运动风格
-- **PPO (Proximal Policy Optimization)**: 近端策略优化算法
-- **速度跟踪控制**: 让机器人跟踪用户设定的速度命令
-- **外部力干扰**: 增强机器人在外力干扰下的稳定性
-- **对称性数据增强**: 左右镜像增强，提高泛化能力
+### 核心特性
 
-### 机器人模型
-
-- **机器人**: Unitree G1 (29 DOF)
-- **仿真器**: Isaac Sim + Isaac Lab
-- **运动数据**: AMCP (Adversarial Motion Control Priors) 数据集
+- **AMP (对抗运动先验)**: 通过对抗学习让机器人模仿人类运动风格
+- **PPO (近端策略优化)**: 稳定可靠的策略优化算法
+- **速度跟踪**: 训练机器人响应遥控器速度命令
+- **外力干扰**: 增强机器人在外力扰动下的平衡能力
+- **对称数据增强**: 左右镜像增强提高策略泛化能力
 
 ---
 
-## 核心功能
-
-### 1. AMP 对抗模仿学习
+## 目录结构
 
 ```
-GMR 人类运动数据 → AMP Discriminator → 风格奖励
-                                         ↓
-              PPO Policy ←←←←←←←←←←←←←←←←←←
+legged_lab-main/
+├── README.md                          # 本文档
+├── docs/
+│   └── AMP_TRAINING_DEPLOYMENT.md     # 详细的AMP训练部署指南
+├── source/legged_lab/
+│   ├── legged_lab/
+│   │   ├── assets/
+│   │   │   └── unitree.py             # 机器人模型定义 (USD关节顺序)
+│   │   ├── rsl_rl/
+│   │   │   ├── amp_runner.py          # AMP训练Runner
+│   │   │   ├── amp_algorithm.py       # PPO+AMP算法实现
+│   │   │   ├── amp_networks.py         # AMP判别器网络
+│   │   │   └── amp_cfg.py             # AMP配置类
+│   │   │   └── rl_cfg.py              # RL基础配置
+│   │   └── tasks/locomotion/amp/
+│   │       ├── amp_env_cfg.py         # AMP环境基础配置
+│   │       └── config/g1/
+│   │           ├── g1_amp_env_cfg.py  # G1专用AMP环境配置
+│   │           └── agents/
+│   │               └── rsl_rl_ppo_cfg.py  # PPO训练配置
+│   │       └── mdp/
+│   │           ├── rewards.py         # 奖励函数定义
+│   │           ├── observations.py    # 观测函数定义
+│   │           ├── events.py          # 事件处理
+│   │           └── symmetry/
+│   │               └── g1.py          # G1对称变换(关键！)
+│   └── data/
+│       └── MotionData/                # 人类运动数据 (Git LFS)
+├── scripts/
+│   ├── rsl_rl/
+│   │   ├── train.py                   # 训练入口
+│   │   └── play.py                    # 播放/测试入口
+│   └── tools/retarget/
+│       └── config/
+│           └── g1_29dof.yaml          # 运动数据重定向配置(关键！)
+└── scripts/rsl_rl/rsl_rl_ppo_cfg.py   # 训练超参数配置
 ```
 
-AMP Discriminator 学习区分专家（人类）运动和机器人运动，产生风格奖励促使机器人模仿人类运动方式。
+---
 
-### 2. 速度跟踪控制
+## 1. 系统架构
 
-机器人跟踪用户设定的线性速度和角速度命令，用于遥控操作。
+### 1.1 整体架构
 
-### 3. 外部力干扰
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           Isaac Lab + Isaac Sim 架构                          │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  IsaacLab (学习框架)                                                         │
+│       │                                                                    │
+│       ├── source/isaaclab/          # IsaacLab 核心模块                      │
+│       ├── source/isaaclab_tasks/    # 任务定义                              │
+│       ├── source/legged_lab/        # 你的机器人任务 (AMP训练)               │
+│       │                                                                          │
+│       └── _isaac_sim/               # Isaac Sim 仿真器                        │
+│                ├── kit/python/bin/python3  # Python 3.11 解释器              │
+│                └── kit/python/lib/python3.11/site-packages/  # isaacsim    │
+│                                                                             │
+│  关键：必须使用 _isaac_sim/python.sh 来启动训练，而不是 conda 的 python!        │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
 
-在训练过程中随机施加外部力，提高机器人的抗干扰能力。
+### 1.2 AMP 训练流程
 
-### 4. 左右对称性数据增强
-
-利用人形机器人的左右对称性，通过镜像变换扩充训练数据，提高泛化能力。
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                            AMP+PPO 训练流程                                  │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  1. 人类运动数据 (MotionData)                                                │
+│          │                                                                  │
+│          ▼                                                                  │
+│  2. GMR (高斯混合回归) 生成参考轨迹                                          │
+│          │                                                                  │
+│          ▼                                                                  │
+│  3. AMP Discriminator (判别器)                                               │
+│     - 接收 expert 演示数据 (gmr_dof_names → lab_dof_names)                  │
+│     - 接收 policy 生成的运动数据                                              │
+│     - 输出 style_reward 奖励信号                                              │
+│          │                                                                  │
+│          ▼                                                                  │
+│  4. PPO 算法优化策略                                                         │
+│     - 结合 style_reward + velocity_reward + 其他奖励                         │
+│     - 更新策略网络                                                           │
+│          │                                                                  │
+│          ▼                                                                  │
+│  5. Symmetry Augmentation (对称增强)                                         │
+│     - 左右镜像数据增强                                                       │
+│     - 提高策略泛化能力                                                       │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
 
 ---
 
-## 环境要求
+## 2. 安装与设置
 
-### 硬件要求
+### 2.1 环境要求
 
-- **GPU**: NVIDIA GPU with CUDA support (推荐 RTX 4070 或更高)
-- **内存**: 32GB+
-- **CPU**: 多核处理器
+- **Isaac Sim**: 2023.1.0 或更高版本
+- **Isaac Lab**: 最新版本
+- **CUDA**: 11.8 或更高版本
+- **Python**: 3.10+ (Isaac Sim 内置 Python)
 
-### 软件依赖
-
-- **Isaac Sim**: 5.1+
-- **Isaac Lab**: 最新版
-- **Python**: 3.11
-- **PyTorch**: 与 Isaac Lab 兼容版本
-- **CUDA**: 11.8 或 12.1
-
----
-
-## 安装步骤
-
-### 1. 克隆仓库
+### 2.2 关键安装步骤
 
 ```bash
-git clone git@github.com:Antonxie/RLearning.git
-cd RLearning
+# 1. 克隆 Isaac Lab (如果尚未安装)
+cd /home/robot/StarBot/isaac-projects
+git clone https://github.com/isaac-sim/IsaacLab.git
+
+# 2. 安装 legged_lab
+cd legged_lab-main
+pip install -e source/legged_lab/
+
+# 3. 安装 amp-rsl-rl (用于 AMP 训练)
+git clone https://github.com/gbionics/amp-rsl-rl.git
+pip install -e amp-rsl-rl/
 ```
 
-### 2. 配置 Isaac Lab 环境
+### 2.3 运动数据安装 (Git LFS)
 
-参考 [Isaac Lab 官方文档](https://isaac-lab.github.io/IsaacLab/main/setup/installation.html) 进行环境配置。
-
-### 3. 安装依赖
+AMP 训练需要人类运动数据，必须使用 Git LFS 下载：
 
 ```bash
-# 使用 Isaac Sim 的 Python 环境
-/home/robot/StarBot/isaac-projects/IsaacLab/IsaacLab-main/_isaac_sim/python.sh -m pip install -r requirements.txt
+# 初始化 Git LFS
+git lfs install
+
+# 克隆仓库 (会自动下载 LFS 文件)
+git clone https://github.com/Antonxie/RLearning.git
+
+# 验证运动数据
+ls -la source/legged_lab/data/MotionData/
 ```
 
 ---
 
-## 快速启动
+## 3. 训练指南
 
-### 训练命令
+### 3.1 正确启动方式 (重要！)
+
+**必须使用 Isaac Sim 内置的 Python 解释器，而非 conda 的 Python：**
 
 ```bash
 cd /home/robot/StarBot/isaac-projects/legged_lab-main
 
-# 在物理显示器上运行
+# 使用物理显示器1
 export DISPLAY=:1
 
 # 启动训练
@@ -121,7 +176,7 @@ export DISPLAY=:1
     --device cuda:0
 ```
 
-### 后台训练
+### 3.2 后台运行
 
 ```bash
 cd /home/robot/StarBot/isaac-projects/legged_lab-main
@@ -137,271 +192,81 @@ nohup /home/robot/StarBot/isaac-projects/IsaacLab/IsaacLab-main/_isaac_sim/pytho
 tail -f /tmp/amp_train.log
 ```
 
-### 查看训练进度关键指标
+### 3.3 训练参数说明
 
-```bash
-# disc_loss: 应该 > 0，表示 discriminator 正常工作
-# expert_accuracy: 应该接近 1.0，表示专家数据正确输入
-# Mean reward: 逐渐增加
-```
-
----
-
-## 代码结构
-
-```
-legged_lab-main/
-├── scripts/
-│   ├── rsl_rl/
-│   │   └── train.py                 # 训练入口脚本
-│   └── tools/
-│       └── retarget/
-│           └── config/
-│               └── g1_29dof.yaml   # GMR→URDF 关节映射配置
-├── source/
-│   └── legged_lab/
-│       └── legged_lab/
-│           ├── assets/
-│           │   └── unitree.py       # 机器人模型定义 (joint_sdk_names)
-│           ├── rsl_rl/
-│           │   ├── amp_runner.py    # AMP 训练 runner
-│           │   ├── amp_algorithm.py  # PPO+AMP 算法
-│           │   └── amp_networks.py   # Discriminator 网络
-│           └── tasks/
-│               └── locomotion/
-│                   └── amp/
-│                       ├── config/
-│                       │   └── g1/
-│                       │       └── g1_amp_env_cfg.py  # AMP 环境配置
-│                       └── mdp/
-│                           └── symmetry/
-│                               └── g1.py  # 左右镜像对称配置
-└── docs/
-    └── AMP_TRAINING_DEPLOYMENT.md  # 详细部署文档
-```
+| 参数 | 说明 | 默认值 |
+|------|------|--------|
+| `--task` | 训练任务名称 | `LeggedLab-Isaac-AMP-G1-v0` |
+| `--num_envs` | 并行环境数量 | `2000` |
+| `--device` | 计算设备 | `cuda:0` |
+| `--headless` | 无头模式(无图形) | 默认关闭 |
 
 ---
 
-## 关键配置文件
+## 4. 关键配置说明
 
-### 1. g1_29dof.yaml - 关节映射配置
+### 4.1 关节映射关系 (最重要！)
 
-位置: `scripts/tools/retarget/config/g1_29dof.yaml`
+AMP 训练涉及三个系统的关节命名映射，必须确保一致：
 
-定义 GMR 人类运动数据到机器人关节的映射。
+| 系统 | 来源 | 用途 |
+|------|------|------|
+| **GMR** | `g1_29dof.yaml` 中的 `gmr_dof_names` | 人类运动数据 |
+| **URDF/USD** | `unitree.py` 中的 `joint_sdk_names` | 机器人实际关节 |
+| **AMP** | `g1_amp_env_cfg.py` 中的 `observation groups` | 判别器输入 |
 
-**关键字段**:
-- `gmr_dof_names`: 人类运动数据的关节顺序
-- `lab_dof_names`: 机器人关节的实际顺序（必须与 USD 模型一致！）
+**关键规则**：
+- `lab_dof_names` 必须与 `unitree.py joint_sdk_names` **完全一致**
+- `gmr_dof_names` 到 `lab_dof_names` 的映射是 **retargeting** 的核心
 
-### 2. unitree.py - 机器人模型
+### 4.2 G1 USD 关节顺序 (29 DOF)
 
-位置: `source/legged_lab/legged_lab/assets/unitree.py`
+| 索引 | USD joint 名称 | 说明 | 左/右 | 部位 |
+|------|---------------|------|------|------|
+| 0 | left_hip_pitch_joint | 左髋屈伸 | 左 | 腿 |
+| 1 | right_hip_pitch_joint | 右髋屈伸 | 右 | 腿 |
+| 2 | waist_yaw_joint | 腰部偏航 | 中 | 腰 |
+| 3 | left_hip_roll_joint | 左髋外展/内收 | 左 | 腿 |
+| 4 | right_hip_roll_joint | 右髋外展/内收 | 右 | 腿 |
+| 5 | waist_roll_joint | 腰部侧翻 | 中 | 腰 |
+| 6 | left_hip_yaw_joint | 左髋旋转 | 左 | 腿 |
+| 7 | right_hip_yaw_joint | 右髋旋转 | 右 | 腿 |
+| 8 | waist_pitch_joint | 腰部前屈 | 中 | 腰 |
+| 9 | left_knee_joint | 左膝 | 左 | 腿 |
+| 10 | right_knee_joint | 右膝 | 右 | 腿 |
+| 11 | left_shoulder_pitch_joint | 左肩屈伸 | 左 | 臂 |
+| 12 | right_shoulder_pitch_joint | 右肩屈伸 | 右 | 臂 |
+| 13 | left_ankle_pitch_joint | 左踝屈伸 | 左 | 腿 |
+| 14 | right_ankle_pitch_joint | 右踝屈伸 | 右 | 腿 |
+| 15 | left_shoulder_roll_joint | 左肩外展/内收 | 左 | 臂 |
+| 16 | right_shoulder_roll_joint | 右肩外展/内收 | 右 | 臂 |
+| 17 | left_ankle_roll_joint | 左踝侧翻 | 左 | 腿 |
+| 18 | right_ ankle_roll_joint | 右踝侧翻 | 右 | 腿 |
+| 19 | left_shoulder_yaw_joint | 左肩旋转 | 左 | 臂 |
+| 20 | right_shoulder_yaw_joint | 右肩旋转 | 右 | 臂 |
+| 21 | left_elbow_joint | 左肘 | 左 | 臂 |
+| 22 | right_elbow_joint | 右肘 | 右 | 臂 |
+| 23 | left_wrist_roll_joint | 左腕滚动 | 左 | 臂 |
+| 24 | right_wrist_roll_joint | 右腕滚动 | 右 | 臂 |
+| 25 | left_wrist_pitch_joint | 左腕屈伸 | 左 | 臂 |
+| 26 | right_wrist_pitch_joint | 右腕屈伸 | 右 | 臂 |
+| 27 | left_wrist_yaw_joint | 左腕偏航 | 左 | 臂 |
+| 28 | right_wrist_yaw_joint | 右腕偏航 | 右 | 臂 |
 
-定义 G1 机器人的物理模型和关节配置。
+### 4.3 Key Body Names (AMP 判别器用)
 
-**关键字段**:
-- `joint_sdk_names`: 机器人关节的实际顺序
+用于 AMP discriminator 观察的 6 个关键肢体位置：
 
-### 3. g1.py - 对称性配置
-
-位置: `source/legged_lab/legged_lab/tasks/locomotion/amp/mdp/symmetry/g1.py`
-
-定义左右镜像变换的索引映射。
-
-### 4. g1_amp_env_cfg.py - AMP 环境配置
-
-位置: `source/legged_lab/legged_lab/tasks/locomotion/amp/config/g1/g1_amp_env_cfg.py`
-
-定义 AMP 环境的观察空间、奖励函数等。
-
-**关键字段**:
-- `KEY_BODY_NAMES`: 6 个关键肢体位置
-
----
-
-## 训练架构
-
-### AMP+PPO 训练流程
-
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│                         训练循环 (50000 iterations)                  │
-├─────────────────────────────────────────────────────────────────────┤
-│                                                                      │
-│  ┌──────────────┐     ┌──────────────┐     ┌──────────────┐        │
-│  │   Env Reset  │ ──▶ │  Collect Exp │ ──▶ │  Update Disc  │        │
-│  └──────────────┘     └──────────────┘     └──────────────┘        │
-│                              │                     │                 │
-│                              ▼                     ▼                 │
-│                       ┌──────────────┐     ┌──────────────┐         │
-│                       │ Expert Demo  │     │ Update Policy│         │
-│                       └──────────────┘     └──────────────┘         │
-│                              │                     │                │
-│                              ▼                     ▼                │
-│                       ┌──────────────┐     ┌──────────────┐        │
-│                       │ Disc Loss    │     │ Policy Loss  │        │
-│                       │ (should > 0) │     │ (surrogate)  │        │
-│                       └──────────────┘     └──────────────┘         │
-│                                                                      │
-└─────────────────────────────────────────────────────────────────────┘
-```
-
-### 奖励函数组成
-
-| 奖励项 | 描述 | 典型值 |
-|--------|------|--------|
-| track_lin_vel_xy | 线性速度跟踪 | ~0.004 |
-| track_ang_vel_z | 角速度跟踪 | ~0.005 |
-| flat_orientation_l2 | 姿态稳定 | ~-0.007 |
-| joint_deviation_hip | 髋关节偏移惩罚 | ~-0.002 |
-| joint_deviation_arms | 手臂关节偏移惩罚 | ~-0.009 |
-| termination_penalty | 终止惩罚 | -0.2 |
-| **discriminator** | AMP 风格奖励 | 来自 Discriminator |
-
-### 关键超参数
-
-| 参数 | 值 | 说明 |
-|------|-----|------|
-| num_envs | 2000 | 并行环境数 |
-| max_iterations | 50000 | 最大训练迭代数 |
-| learning_rate | 0.0001 | 学习率 |
-| num_steps_per_env | 24 | 每回合步数 |
-| disc_update_steps | 5 | Discriminator 更新步数 |
-
----
-
-## 调试工具
-
-### 1. 打印 G1 实际关节和 Link 名称
-
-```bash
-cd /home/robot/StarBot/isaac-projects/legged_lab-main
-export DISPLAY=:1
-
-/home/robot/StarBot/isaac-projects/IsaacLab/IsaacLab-main/_isaac_sim/python.sh \
-    print_g1_links.py
-```
-
-输出示例：
-```
-============================================================
-G1 29DOF Joint Names (DOFs):
-============================================================
-  [ 0] left_hip_pitch_joint
-  [ 1] right_hip_pitch_joint
-  [ 2] waist_yaw_joint
-  ...
-
-============================================================
-G1 29DOF Body Names (Links):
-============================================================
-  [ 0] pelvis
-  [ 1] left_hip_pitch_link
-  ...
-```
-
-### 2. 验证关节顺序一致性
-
-运行训练时观察以下指标：
-- `disc_loss`: 应该 > 0
-- `expert_accuracy`: 应该接近 1.0
-
----
-
-## 常见问题
-
-### Q1: ModuleNotFoundError: No module named 'isaacsim'
-
-**原因**: 使用了错误的 Python 解释器
-
-**解决**:
-```bash
-# ✅ 正确方式
-/home/robot/StarBot/isaac-projects/IsaacLab/IsaacLab-main/_isaac_sim/python.sh train.py
-```
-
-### Q2: disc_loss = 0
-
-**原因**: 关节映射配置错误
-
-**排查**:
-1. 检查 `g1_29dof.yaml` 的 `lab_dof_names` 是否与 `unitree.py` 的 `joint_sdk_names` 一致
-2. 检查 `symmetry/g1.py` 的索引是否正确
-
-### Q3: 机器人手臂乱动
-
-**原因**: GMR 数据被错误映射到不对应的关节
-
-**解决**: 按照文档中的关节顺序表格修正配置
-
-### Q4: 训练启动后崩溃 (segmentation fault)
-
-**解决**:
-```bash
-# 使用正确的 DISPLAY
-export DISPLAY=:1  # 或 :0
-
-# 或使用 headless 模式
-unset DISPLAY
-```
-
----
-
-## 技术细节
-
-### USD 模型关节顺序
-
-G1 29DOF 的实际关节顺序（来自 USD 模型）：
-
-| 索引 | 关节名称 | 左/右 | 部位 |
-|------|---------|-------|------|
-| 0 | left_hip_pitch_joint | 左 | 腿 |
-| 1 | right_hip_pitch_joint | 右 | 腿 |
-| 2 | waist_yaw_joint | 中 | 腰 |
-| 3 | left_hip_roll_joint | 左 | 腿 |
-| 4 | right_hip_roll_joint | 右 | 腿 |
-| 5 | waist_roll_joint | 中 | 腰 |
-| 6 | left_hip_yaw_joint | 左 | 腿 |
-| 7 | right_hip_yaw_joint | 右 | 腿 |
-| 8 | waist_pitch_joint | 中 | 腰 |
-| 9 | left_knee_joint | 左 | 腿 |
-| 10 | right_knee_joint | 右 | 腿 |
-| 11 | left_shoulder_pitch_joint | 左 | 臂 |
-| 12 | right_shoulder_pitch_joint | 右 | 臂 |
-| 13 | left_ankle_pitch_joint | 左 | 腿 |
-| 14 | right_ankle_pitch_joint | 右 | 腿 |
-| 15 | left_shoulder_roll_joint | 左 | 臂 |
-| 16 | right_shoulder_roll_joint | 右 | 臂 |
-| 17 | left_ankle_roll_joint | 左 | 腿 |
-| 18 | right_ankle_roll_joint | 右 | 腿 |
-| 19 | left_shoulder_yaw_joint | 左 | 臂 |
-| 20 | right_shoulder_yaw_joint | 右 | 臂 |
-| 21 | left_elbow_joint | 左 | 臂 |
-| 22 | right_elbow_joint | 右 | 臂 |
-| 23 | left_wrist_roll_joint | 左 | 臂 |
-| 24 | right_wrist_roll_joint | 右 | 臂 |
-| 25 | left_wrist_pitch_joint | 左 | 臂 |
-| 26 | right_wrist_pitch_joint | 右 | 臂 |
-| 27 | left_wrist_yaw_joint | 左 | 臂 |
-| 28 | right_wrist_yaw_joint | 右 | 臂 |
-
-**注意**: 这个顺序是**左右交替**的，不是左腿集中！
-
-### 关键肢体位置 (Key Body Names)
-
-用于 AMP Discriminator 观察的 6 个关键肢体：
-
-| 索引 | Link 名称 | 说明 |
-|------|----------|------|
+| 索引 | Key Body Name (Link) | 说明 |
+|------|---------------------|------|
 | 0 | left_ankle_roll_link | 左脚踝 |
 | 1 | right_ankle_roll_link | 右脚踝 |
-| 2 | left_wrist_yaw_link | 左手腕 |
-| 3 | right_wrist_yaw_link | 右手腕 |
-| 4 | left_shoulder_roll_link | 左肩 |
-| 5 | right_shoulder_roll_link | 右肩 |
+| 2 | left_wrist_yaw_link | 左手腕（手臂摆动） |
+| 3 | right_wrist_yaw_link | 右手腕（手臂摆动） |
+| 4 | left_shoulder_roll_link | 左肩（手臂摆动） |
+| 5 | right_shoulder_roll_link | 右肩（手臂摆动） |
 
-### 左右镜像索引
+### 4.4 Symmetry 索引 (对称增强)
 
 ```python
 # 左关节索引
@@ -416,28 +281,134 @@ roll_indices = [3, 4, 15, 16]
 # Yaw 关节 (需要符号翻转)
 yaw_indices = [6, 7, 19, 20, 27, 28]
 
-# 腰部关节 (不参与镜像)
+# Waist 关节 (不参与镜像)
 waist_indices = [2, 5, 8]
 ```
 
 ---
 
-## 维护记录
+## 5. 关键配置文件清单
 
-| 日期 | 修改内容 | 说明 |
-|------|---------|------|
-| 2026-03-23 | 初始版本 | 实现 AMP+PPO+GMR 训练框架 |
-| 2026-03-23 | 修复关节映射 | 发现 USD 模型关节顺序是左右交替而非左腿集中 |
-| 2026-03-23 | 上传代码 | 提交到 GitHub |
+| 文件路径 | 用途 | 关键内容 |
+|---------|------|---------|
+| `scripts/tools/retarget/config/g1_29dof.yaml` | GMR→URDF 映射 | gmr_dof_names, lab_dof_names |
+| `source/legged_lab/tasks/locomotion/amp/config/g1/g1_amp_env_cfg.py` | AMP环境配置 | KEY_BODY_NAMES, observation groups |
+| `source/legged_lab/tasks/locomotion/amp/mdp/symmetry/g1.py` | 对称变换 | left_indices, right_indices, roll_indices |
+| `source/legged_lab/assets/unitree.py` | 机器人模型 | joint_sdk_names (29 DOF) |
+| `source/legged_lab/rsl_rl/amp_cfg.py` | AMP配置 | disc_learning_rate, grad_penalty_scale |
 
 ---
 
-## 联系方式
+## 6. 奖励函数设计
 
-- GitHub: [Antonxie/RLearning](git@github.com:Antonxie/RLearning.git)
+### 6.1 奖励组成
 
-## 致谢
+| 奖励项 | 说明 | 权重 |
+|--------|------|------|
+| `tracking_linear_velocity` | 线性速度跟踪 | 高 |
+| `tracking_angular_velocity` | 角速度跟踪 | 中 |
+| `linear_velocity` | 实际线性速度 | 中 |
+| `angular_velocity` | 实际角速度 | 中 |
+| `style_reward` | AMP风格奖励 | 高 |
+| `joint_acceleration` | 关节加速度惩罚 | 低 |
+| `action_rate` | 动作变化惩罚 | 低 |
+| `feet_air_time` | 脚离地时间奖励 | 中 |
+| `feet_contact` | 脚接触奖励 | 中 |
 
-- [Isaac Lab](https://isaac-lab.github.io/IsaacLab/) - 仿真框架
-- [Unitree](https://www.unitree.com/) - 机器人硬件
-- [AMP-RSL-RL](https://github.com/gbionics/amp-rsl-rl) - AMP 算法参考
+### 6.2 外力干扰
+
+训练期间会随机施加外部力干扰，提高机器人抗扰动能力：
+
+```yaml
+external_force:
+  scale: 100.0          # 外力大小
+  duration: 0.2         # 持续时间 (秒)
+  interval: 5.0          # 施加间隔 (秒)
+  range: [0.5, 1.5]     # 随机范围系数
+```
+
+---
+
+## 7. 常见问题排查
+
+### 7.1 ModuleNotFoundError: No module named 'isaacsim'
+
+**原因**: 使用了错误的 Python 解释器
+
+**解决**:
+```bash
+# ❌ 错误
+python scripts/rsl_rl/train.py
+conda activate isaaclab && python scripts/rsl_rl/train.py
+
+# ✅ 正确
+/home/robot/StarBot/isaac-projects/IsaacLab/IsaacLab-main/_isaac_sim/python.sh scripts/rsl_rl/train.py
+```
+
+### 7.2 disc_loss = 0.0
+
+**可能原因**:
+1. expert 数据未正确加载
+2. lab_dof_names 与 USD joint 顺序不一致
+3. MotionData 文件未下载
+
+**排查步骤**:
+```bash
+# 1. 检查 MotionData 是否存在
+ls -la source/legged_lab/data/MotionData/
+
+# 2. 检查关节顺序一致性
+grep -A 30 "joint_sdk_names" source/legged_lab/assets/unitree.py
+```
+
+### 7.3 机器人手臂乱动
+
+**原因**: GMR 数据被错误映射到不对应的机器人关节
+
+**解决**: 修正 `g1_29dof.yaml` 中的 `lab_dof_names`，确保与 USD 关节顺序一致
+
+### 7.4 训练启动后立即崩溃 (segmentation fault)
+
+**原因**: DISPLAY 环境变量设置问题
+
+**解决**:
+```bash
+# 使用显示器1时
+export DISPLAY=:1
+
+# 或不使用 DISPLAY (headless 模式)
+unset DISPLAY
+```
+
+---
+
+## 8. 参考资源
+
+### 8.1 相关论文
+
+- **AMP (Adversarial Motion Priors)**: [AMP: Adversarial Motion Priors for Stylized Physics-Based Control](https://arxiv.org/abs/2104.02180)
+- **PPO**: [Proximal Policy Optimization Algorithms](https://arxiv.org/abs/1707.06347)
+
+### 8.2 开源项目
+
+- [Isaac Lab](https://github.com/isaac-sim/IsaacLab) - NVIDIA Isaac Lab 仿真平台
+- [amp-rsl-rl](https://github.com/gbionics/amp-rsl-rl) - AMP+RSL-RL 实现
+- [DeepMimic](https://github.com/xbpeng/DeepMimic) - 动作模仿学习
+
+### 8.3 机器人模型
+
+- [Unitree G1](https://www.unitree.com/g1) - 本项目使用的 G1 人形机器人
+
+---
+
+## 9. 致谢
+
+- NVIDIA Isaac Lab 团队
+- Unitree 机器人公司
+- AMP-rsl-rl 开源社区
+
+---
+
+## 10. 许可证
+
+本项目基于 MIT 许可证开源。
