@@ -2,6 +2,7 @@
 *.log
 training_log.txt
 logs/
+outputs/
 *.pyc
 __pycache__/
 

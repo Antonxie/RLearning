@@ -169,35 +169,35 @@ def _transform_actions_left_right(actions: torch.Tensor) -> torch.Tensor:
 
 
 """
-Lab joint names (correct order matching USD model):
+Lab joint names (correct order matching gmr_dof_names and USD model):
  0 - left_hip_pitch_joint
- 1 - right_hip_pitch_joint
- 2 - waist_yaw_joint
- 3 - left_hip_roll_joint
- 4 - right_hip_roll_joint
- 5 - waist_roll_joint
- 6 - left_hip_yaw_joint
- 7 - right_hip_yaw_joint
- 8 - waist_pitch_joint
- 9 - left_knee_joint
-10 - right_knee_joint
-11 - left_shoulder_pitch_joint
-12 - right_shoulder_pitch_joint
-13 - left_ankle_pitch_joint
-14 - right_ankle_pitch_joint
-15 - left_shoulder_roll_joint
-16 - right_shoulder_roll_joint
-17 - left_ankle_roll_joint
-18 - right_ankle_roll_joint
-19 - left_shoulder_yaw_joint
-20 - right_shoulder_yaw_joint
-21 - left_elbow_joint
-22 - right_elbow_joint
-23 - left_wrist_roll_joint
-24 - right_wrist_roll_joint
-25 - left_wrist_pitch_joint
-26 - right_wrist_pitch_joint
-27 - left_wrist_yaw_joint
+ 1 - left_hip_roll_joint
+ 2 - left_hip_yaw_joint
+ 3 - left_knee_joint
+ 4 - left_ankle_pitch_joint
+ 5 - left_ankle_roll_joint
+ 6 - right_hip_pitch_joint
+ 7 - right_hip_roll_joint
+ 8 - right_hip_yaw_joint
+ 9 - right_knee_joint
+10 - right_ankle_pitch_joint
+11 - right_ankle_roll_joint
+12 - waist_yaw_joint
+13 - waist_roll_joint
+14 - waist_pitch_joint
+15 - left_shoulder_pitch_joint
+16 - left_shoulder_roll_joint
+17 - left_shoulder_yaw_joint
+18 - left_elbow_joint
+19 - left_wrist_roll_joint
+20 - left_wrist_pitch_joint
+21 - left_wrist_yaw_joint
+22 - right_shoulder_pitch_joint
+23 - right_shoulder_roll_joint
+24 - right_shoulder_yaw_joint
+25 - right_elbow_joint
+26 - right_wrist_roll_joint
+27 - right_wrist_pitch_joint
 28 - right_wrist_yaw_joint
 """
 
@@ -205,22 +205,17 @@ def _switch_g1_29dof_joints_left_right(joint_data: torch.Tensor) -> torch.Tensor
     """Applies a left-right symmetry transformation to the joint data tensor."""
     joint_data_switched = torch.zeros_like(joint_data)
 
-    # Indices for left and right joints (matching USD model order)
-    left_indices = [0, 3, 6, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27]
-    right_indices = [1, 4, 7, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28]
+    left_indices = [0, 1, 2, 3, 4, 5, 15, 16, 17, 18, 19, 20, 21]
+    right_indices = [6, 7, 8, 9, 10, 11, 22, 23, 24, 25, 26, 27, 28]
 
-    # Indices for roll and yaw joints that need sign flipping
-    roll_indices = [3, 4, 15, 16]
-    yaw_indices = [6, 7, 19, 20, 27, 28]
+    roll_indices = [1, 4, 5, 7, 10, 11, 16, 19, 23, 26]
+    yaw_indices = [2, 8, 17, 21, 24, 28]
 
-    # Copy non-symmetric joints first (waist joints: indices 2, 5, 8)
-    joint_data_switched[..., [2, 5, 8]] = joint_data[..., [2, 5, 8]]
+    joint_data_switched[..., [12, 13, 14]] = joint_data[..., [12, 13, 14]]
 
-    # Swap left and right joints
     joint_data_switched[..., left_indices] = joint_data[..., right_indices]
     joint_data_switched[..., right_indices] = joint_data[..., left_indices]
 
-    # Flip the sign of roll and yaw joints
     joint_data_switched[..., roll_indices] *= -1.0
     joint_data_switched[..., yaw_indices] *= -1.0
 

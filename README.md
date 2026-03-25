@@ -219,39 +219,43 @@ AMP 训练涉及三个系统的关节命名映射，必须确保一致：
 - `lab_dof_names` 必须与 `unitree.py joint_sdk_names` **完全一致**
 - `gmr_dof_names` 到 `lab_dof_names` 的映射是 **retargeting** 的核心
 
-### 4.2 G1 USD 关节顺序 (29 DOF)
+### 4.2 G1 关节顺序 (29 DOF) - gmr_dof_names / lab_dof_names
 
-| 索引 | USD joint 名称 | 说明 | 左/右 | 部位 |
-|------|---------------|------|------|------|
+**重要**: `gmr_dof_names` 和 `lab_dof_names` 必须有完全相同的顺序！
+
+| 索引 | 关节名称 | 说明 | 左/右 | 部位 |
+|------|----------|------|--------|------|
 | 0 | left_hip_pitch_joint | 左髋屈伸 | 左 | 腿 |
-| 1 | right_hip_pitch_joint | 右髋屈伸 | 右 | 腿 |
-| 2 | waist_yaw_joint | 腰部偏航 | 中 | 腰 |
-| 3 | left_hip_roll_joint | 左髋外展/内收 | 左 | 腿 |
-| 4 | right_hip_roll_joint | 右髋外展/内收 | 右 | 腿 |
-| 5 | waist_roll_joint | 腰部侧翻 | 中 | 腰 |
-| 6 | left_hip_yaw_joint | 左髋旋转 | 左 | 腿 |
-| 7 | right_hip_yaw_joint | 右髋旋转 | 右 | 腿 |
-| 8 | waist_pitch_joint | 腰部前屈 | 中 | 腰 |
-| 9 | left_knee_joint | 左膝 | 左 | 腿 |
-| 10 | right_knee_joint | 右膝 | 右 | 腿 |
-| 11 | left_shoulder_pitch_joint | 左肩屈伸 | 左 | 臂 |
-| 12 | right_shoulder_pitch_joint | 右肩屈伸 | 右 | 臂 |
-| 13 | left_ankle_pitch_joint | 左踝屈伸 | 左 | 腿 |
-| 14 | right_ankle_pitch_joint | 右踝屈伸 | 右 | 腿 |
-| 15 | left_shoulder_roll_joint | 左肩外展/内收 | 左 | 臂 |
-| 16 | right_shoulder_roll_joint | 右肩外展/内收 | 右 | 臂 |
-| 17 | left_ankle_roll_joint | 左踝侧翻 | 左 | 腿 |
-| 18 | right_ ankle_roll_joint | 右踝侧翻 | 右 | 腿 |
-| 19 | left_shoulder_yaw_joint | 左肩旋转 | 左 | 臂 |
-| 20 | right_shoulder_yaw_joint | 右肩旋转 | 右 | 臂 |
-| 21 | left_elbow_joint | 左肘 | 左 | 臂 |
-| 22 | right_elbow_joint | 右肘 | 右 | 臂 |
-| 23 | left_wrist_roll_joint | 左腕滚动 | 左 | 臂 |
-| 24 | right_wrist_roll_joint | 右腕滚动 | 右 | 臂 |
-| 25 | left_wrist_pitch_joint | 左腕屈伸 | 左 | 臂 |
-| 26 | right_wrist_pitch_joint | 右腕屈伸 | 右 | 臂 |
-| 27 | left_wrist_yaw_joint | 左腕偏航 | 左 | 臂 |
+| 1 | left_hip_roll_joint | 左髋外展/内收 | 左 | 腿 |
+| 2 | left_hip_yaw_joint | 左髋旋转 | 左 | 腿 |
+| 3 | left_knee_joint | 左膝 | 左 | 腿 |
+| 4 | left_ankle_pitch_joint | 左踝屈伸 | 左 | 腿 |
+| 5 | left_ankle_roll_joint | 左踝侧翻 | 左 | 腿 |
+| 6 | right_hip_pitch_joint | 右髋屈伸 | 右 | 腿 |
+| 7 | right_hip_roll_joint | 右髋外展/内收 | 右 | 腿 |
+| 8 | right_hip_yaw_joint | 右髋旋转 | 右 | 腿 |
+| 9 | right_knee_joint | 右膝 | 右 | 腿 |
+| 10 | right_ankle_pitch_joint | 右踝屈伸 | 右 | 腿 |
+| 11 | right_ankle_roll_joint | 右踝侧翻 | 右 | 腿 |
+| 12 | waist_yaw_joint | 腰部偏航 | 中 | 腰 |
+| 13 | waist_roll_joint | 腰部侧翻 | 中 | 腰 |
+| 14 | waist_pitch_joint | 腰部前屈 | 中 | 腰 |
+| 15 | left_shoulder_pitch_joint | 左肩屈伸 | 左 | 臂 |
+| 16 | left_shoulder_roll_joint | 左肩外展/内收 | 左 | 臂 |
+| 17 | left_shoulder_yaw_joint | 左肩旋转 | 左 | 臂 |
+| 18 | left_elbow_joint | 左肘 | 左 | 臂 |
+| 19 | left_wrist_roll_joint | 左腕滚动 | 左 | 臂 |
+| 20 | left_wrist_pitch_joint | 左腕屈伸 | 左 | 臂 |
+| 21 | left_wrist_yaw_joint | 左腕偏航 | 左 | 臂 |
+| 22 | right_shoulder_pitch_joint | 右肩屈伸 | 右 | 臂 |
+| 23 | right_shoulder_roll_joint | 右肩外展/内收 | 右 | 臂 |
+| 24 | right_shoulder_yaw_joint | 右肩旋转 | 右 | 臂 |
+| 25 | right_elbow_joint | 右肘 | 右 | 臂 |
+| 26 | right_wrist_roll_joint | 右腕滚动 | 右 | 臂 |
+| 27 | right_wrist_pitch_joint | 右腕屈伸 | 右 | 臂 |
 | 28 | right_wrist_yaw_joint | 右腕偏航 | 右 | 臂 |
+
+**顺序规律**: 先左腿(6) → 右腿(6) → 腰部(3) → 左臂(7) → 右臂(7)
 
 ### 4.3 Key Body Names (AMP 判别器用)
 
@@ -268,21 +272,23 @@ AMP 训练涉及三个系统的关节命名映射，必须确保一致：
 
 ### 4.4 Symmetry 索引 (对称增强)
 
-```python
-# 左关节索引
-left_indices = [0, 3, 6, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27]
+**重要**: 索引基于修正后的 gmr_dof_names / lab_dof_names 顺序
 
-# 右关节索引
-right_indices = [1, 4, 7, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28]
+```python
+# 左关节索引 (先左腿0-5，再左臂15-21)
+left_indices = [0, 1, 2, 3, 4, 5, 15, 16, 17, 18, 19, 20, 21]
+
+# 右关节索引 (先右腿6-11，再右臂22-28)
+right_indices = [6, 7, 8, 9, 10, 11, 22, 23, 24, 25, 26, 27, 28]
 
 # Roll 关节 (需要符号翻转)
-roll_indices = [3, 4, 15, 16]
+roll_indices = [1, 4, 5, 7, 10, 11, 16, 19, 23, 26]
 
 # Yaw 关节 (需要符号翻转)
-yaw_indices = [6, 7, 19, 20, 27, 28]
+yaw_indices = [2, 8, 17, 21, 24, 28]
 
 # Waist 关节 (不参与镜像)
-waist_indices = [2, 5, 8]
+waist_indices = [12, 13, 14]
 ```
 
 ---
